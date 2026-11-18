@@ -1,0 +1,508 @@
+<!doctype html>
+<!-- Stem Cell Lab / Stammzell-Labor — CCB lab, Lange Nacht der Wissenschaften, UKJ.  v1 -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Stammzell-Labor</title>
+<!-- ponytail: fonts load from Google; offline booth falls back to monospace. Bundle the .woff2 files if Wi-Fi is unreliable. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#1b2238; --panel:#26304d; --edge:#0d1222; --accent:#ffd34d; --btn:#4a7bd9; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:#fff;
+    font-family:'VT323','Courier New',monospace; touch-action:manipulation;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  #app { max-width:1100px; margin:0 auto; padding:12px; display:flex; flex-direction:column; gap:12px; min-height:100%; }
+  #scene { width:100%; max-width:calc(50vh * 16 / 9); margin:0 auto; display:block;
+    image-rendering:pixelated; border:4px solid var(--edge); }
+  #panel { flex:1; background:var(--panel); border:4px solid var(--edge); box-shadow:inset 0 0 0 4px #3a4670;
+    padding:14px 18px; text-align:center; }
+  h1 { font-family:'Press Start 2P',monospace; font-size:clamp(20px,4vw,40px); color:var(--accent);
+    margin:8px 0 14px; text-shadow:4px 4px 0 var(--edge); }
+  .msg { font-size:clamp(26px,3.4vw,36px); margin:4px 0 10px; line-height:1.1; }
+  .hint { font-size:clamp(20px,2.6vw,26px); color:var(--accent); margin:0 0 12px; }
+  .btns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  button { font-family:'Press Start 2P',monospace; font-size:clamp(12px,1.6vw,16px); color:#fff; background:var(--btn);
+    border:0; padding:16px 22px; min-height:64px; cursor:pointer; box-shadow:0 6px 0 #1d3f8a; }
+  button:active { transform:translateY(4px); box-shadow:0 2px 0 #1d3f8a; }
+  .bottle { background:#e9f3f7; color:var(--bg); display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:8px 10px; min-width:96px; box-shadow:0 6px 0 #9fb3c0; font-size:12px; }
+  .bottle:active { box-shadow:0 2px 0 #9fb3c0; }
+  .bottle canvas { width:48px; height:60px; image-rendering:pixelated; }
+  .bottle small { font-family:'VT323',monospace; font-size:16px; max-width:120px; }
+  .fact { background:#fff7d6; color:#3b2a00; border:4px solid var(--edge); padding:10px 14px; margin:0 auto 14px;
+    max-width:780px; font-size:clamp(21px,2.6vw,27px); text-align:left; }
+  .fact b { font-family:'Press Start 2P',monospace; font-size:12px; display:block; margin-bottom:6px; color:#b5651d; }
+  #lang { position:fixed; top:10px; right:10px; display:flex; gap:6px; z-index:5; }
+  #lang button { min-height:44px; padding:10px 12px; font-size:12px; background:#2b3a55; box-shadow:0 4px 0 var(--edge); }
+  #lang button.on { background:var(--accent); color:var(--bg); }
+  .head { display:flex; align-items:center; justify-content:center; gap:16px; margin:4px 0 10px; }
+  .head img { width:clamp(70px,10vw,110px); height:auto; }
+  .head h1 { margin:0; }
+  .card { background:#fff; color:var(--bg); border:4px solid var(--edge); box-shadow:6px 6px 0 var(--edge);
+    max-width:780px; margin:4px auto 18px; padding:14px 20px; text-align:left; }
+  .card h2 { font-family:'Press Start 2P',monospace; font-size:clamp(14px,2vw,20px); color:var(--btn); margin:0 0 10px; }
+  .card p { font-size:clamp(24px,3vw,32px); margin:0; line-height:1.1; }
+  .credits { font-size:19px; opacity:.8; margin:16px 0 0; }
+  .credits a { color:var(--accent); }
+  #ver { position:fixed; bottom:4px; left:8px; font-size:16px; opacity:.4; }
+</style>
+</head>
+<body>
+<div id="lang"><button data-l="de">DE</button><button data-l="en">EN</button></div>
+<div id="app">
+  <canvas id="scene" width="192" height="108"></canvas>
+  <div id="panel"></div>
+</div>
+<div id="ver">v2</div>
+
+<script>
+// ---------- settings ----------
+const IDLE_MS = 90000;          // back to start screen after 90 s without a touch
+const DEFAULT_LANG = 'de';
+
+// ---------- texts ----------
+const T = {
+  en: {
+    title:'Stem Cell Lab', subtitle:'Turn your cells into stem cells and grow mini-organs!', start:'Start',
+    what_t:'What are stem cells?',
+    what:"Stem cells are the body's \"starter cells\". They can make copies of themselves, and they can turn into many other kinds of cells: brain, heart, skin, blood and more!",
+    why_t:'Why are stem cells important?',
+    why:'They help your body grow and heal, for example when you cut your skin. Scientists use them to grow mini-organs in the lab, to understand diseases and find new medicines.',
+    credit:'Created with Claude Code – by Tejas Borkar', event:'Long Night of Science · Jena University Hospital',
+    step1:'Step 1: Collect some of your cells! How?', swab:'Cheek swab', blood:'Drop of blood',
+    collecting:'Collecting cells…', gotCells:'Great! Your cells are in the dish.', next:'Next',
+    step2:'Step 2: Which cocktail turns your cells into stem cells?', hint:'Hint: look for the 4 Yamanaka factors!',
+    pouring:'Pouring…', success:'Wow! Your cells are now stem cells!',
+    failHint:"Hmm… your cells look the same. Let's see what happens!",
+    step3:'Step 3: Pick a cocktail to grow a mini-organ (an organoid)!', growing:'Growing…',
+    made_brain:'You grew a mini-brain!', made_gut:'You grew a mini-gut!', made_heart:'You grew a mini-heart!', made_eye:'You grew a mini-eye!',
+    noGrow:'Oh no, nothing grows! Your cells were not stem cells, so they cannot become an organoid.',
+    tryAgain:'Try again', another:'Grow another', finish:'Finish',
+    end:'Great job!', endSub:'You grew {n} of 4 organoids. You are a real scientist!', allDone:'You collected all 4 badges!',
+    playAgain:'Play again', didYouKnow:'Did you know?',
+    b_yamanaka:'Yamanaka mix', b_sugar:'Sugar water', b_salt:'Salt water', b_lemon:'Lemon juice', b_coffee:'Coffee', b_milk:'Milk',
+    b_brain:'Brain mix', b_gut:'Gut mix', b_heart:'Heart mix', b_eye:'Eye mix',
+    f_swab:'The inside of your cheek is full of cells! Scientists can collect them gently with a cotton swab.',
+    f_blood:'One tiny drop of blood holds millions of cells. Scientists can turn some of them into stem cells.',
+    f_yamanaka:"In 2006, Shinya Yamanaka found 4 'magic' factors that turn normal cells into stem cells. He won the Nobel Prize for it in 2012!",
+    f_onlyStem:'Only stem cells can turn into every kind of cell. Normal cells must first be reprogrammed with the Yamanaka factors.',
+    f_brain:'Scientists use mini-brains to study the brain and diseases like brain tumours.',
+    f_gut:'Your gut lining renews itself every few days, thanks to its own stem cells!',
+    f_heart:'Heart organoids can really beat, all by themselves!',
+    f_eye:'Eye organoids grow light-sensitive cells, just like a real retina.',
+  },
+  de: {
+    title:'Stammzell-Labor', subtitle:'Verwandle deine Zellen in Stammzellen und züchte Mini-Organe!', start:"Los geht's!",
+    what_t:'Was sind Stammzellen?',
+    what:'Stammzellen sind die „Startzellen“ unseres Körpers. Sie können sich selbst kopieren und sich in viele andere Zellen verwandeln: Gehirn-, Herz-, Haut-, Blutzellen und noch mehr!',
+    why_t:'Warum sind Stammzellen so wichtig?',
+    why:'Sie helfen deinem Körper beim Wachsen und Heilen, zum Beispiel wenn du dich geschnitten hast. Forschende züchten damit Mini-Organe im Labor, um Krankheiten zu verstehen und neue Medikamente zu finden.',
+    credit:'Erstellt mit Claude Code – von Tejas Borkar', event:'Lange Nacht der Wissenschaften · Universitätsklinikum Jena',
+    step1:'Schritt 1: Sammle ein paar deiner Zellen! Wie?', swab:'Wangenabstrich', blood:'Blutstropfen',
+    collecting:'Zellen werden gesammelt …', gotCells:'Super! Deine Zellen sind jetzt in der Schale.', next:'Weiter',
+    step2:'Schritt 2: Welcher Cocktail verwandelt deine Zellen in Stammzellen?', hint:'Tipp: Suche die 4 Yamanaka-Faktoren!',
+    pouring:'Wird eingefüllt …', success:'Wow! Deine Zellen sind jetzt Stammzellen!',
+    failHint:'Hmm … deine Zellen sehen gleich aus. Mal sehen, was passiert!',
+    step3:'Schritt 3: Wähle einen Cocktail und züchte ein Mini-Organ (ein Organoid)!', growing:'Es wächst …',
+    made_brain:'Du hast ein Mini-Gehirn gezüchtet!', made_gut:'Du hast einen Mini-Darm gezüchtet!',
+    made_heart:'Du hast ein Mini-Herz gezüchtet!', made_eye:'Du hast ein Mini-Auge gezüchtet!',
+    noGrow:'Oh nein, nichts wächst! Deine Zellen waren keine Stammzellen – deshalb können sie kein Organoid werden.',
+    tryAgain:'Nochmal versuchen', another:'Noch eins züchten', finish:'Fertig',
+    end:'Super gemacht!', endSub:'Du hast {n} von 4 Organoiden gezüchtet. Du bist ein echtes Forschungstalent!',
+    allDone:'Du hast alle 4 Abzeichen gesammelt!', playAgain:'Nochmal spielen', didYouKnow:'Wusstest du schon?',
+    b_yamanaka:'Yamanaka-Mix', b_sugar:'Zuckerwasser', b_salt:'Salzwasser', b_lemon:'Zitronensaft', b_coffee:'Kaffee', b_milk:'Milch',
+    b_brain:'Gehirn-Mix', b_gut:'Darm-Mix', b_heart:'Herz-Mix', b_eye:'Augen-Mix',
+    f_swab:'In deiner Wange stecken ganz viele Zellen! Forschende sammeln sie ganz sanft mit einem Wattestäbchen.',
+    f_blood:'Ein winziger Blutstropfen enthält Millionen von Zellen. Aus einigen davon kann man Stammzellen machen.',
+    f_yamanaka:'Shinya Yamanaka entdeckte 2006 vier „Zauber-Faktoren“, die normale Zellen in Stammzellen verwandeln. Dafür bekam er 2012 den Nobelpreis!',
+    f_onlyStem:'Nur Stammzellen können zu jeder Art von Zelle werden. Normale Zellen müssen zuerst mit den Yamanaka-Faktoren umprogrammiert werden.',
+    f_brain:'Mit Mini-Gehirnen erforschen Wissenschaftlerinnen und Wissenschaftler das Gehirn und Krankheiten wie Hirntumoren.',
+    f_gut:'Deine Darmwand erneuert sich alle paar Tage – dank ihrer eigenen Stammzellen!',
+    f_heart:'Herz-Organoide können wirklich schlagen – ganz von allein!',
+    f_eye:'Augen-Organoide bilden lichtempfindliche Zellen, genau wie eine echte Netzhaut.',
+  },
+};
+let lang = DEFAULT_LANG;
+try { lang = localStorage.getItem('lang') || lang; } catch {}
+const t = (k, n) => (T[lang][k] ?? T.en[k] ?? k).replace('{n}', n);
+
+// ---------- game data ----------
+const REPRO = [
+  { id:'yamanaka', col:'#c77dff', sub:'OCT4 · SOX2 · KLF4 · c-MYC', ok:true },
+  { id:'sugar', col:'#ffb3d1' }, { id:'salt', col:'#9fd4ff' }, { id:'lemon', col:'#fff27a' },
+  { id:'coffee', col:'#6b3e1f' }, { id:'milk', col:'#ffffff' },
+];
+const ORGANS = ['brain', 'gut', 'heart', 'eye'];
+const ORG_COL = { brain:'#f4a6c0', gut:'#f6c26b', heart:'#e8454f', eye:'#4a90d9' };
+
+// ---------- pixel drawing ----------
+const W = 192, H = 108, OUT = '#2b3a55';
+const ctx = document.getElementById('scene').getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const R = Math.round;
+const rect = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(R(x), R(y), R(w), R(h)); };
+const px = (x, y, c) => rect(x, y, 1, 1, c);
+function ell(cx, cy, rx, ry, c) {               // filled pixel ellipse
+  cx = R(cx); cy = R(cy); rx = Math.max(0, R(rx)); ry = Math.max(0, R(ry));
+  ctx.fillStyle = c;
+  if (!ry) { ctx.fillRect(cx - rx, cy, 2 * rx + 1, 1); return; }
+  for (let y = -ry; y <= ry; y++) { const w = R(rx * Math.sqrt(1 - (y / ry) ** 2)); ctx.fillRect(cx - w, cy + y, 2 * w + 1, 1); }
+}
+const ellO = (cx, cy, rx, ry, c) => { ell(cx, cy, rx + 1, ry + 1, OUT); ell(cx, cy, rx, ry, c); };
+function shape(cx, cy, n, inside, c) {          // any shape from an inside(x,y) test, with outline
+  for (let y = -n; y <= n; y++) for (let x = -n; x <= n; x++) {
+    if (inside(x, y)) px(cx + x, cy + y, c);
+    else if (inside(x + 1, y) || inside(x - 1, y) || inside(x, y + 1) || inside(x, y - 1)) px(cx + x, cy + y, OUT);
+  }
+}
+function sprite(rows, pal) {
+  const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
+  const g = c.getContext('2d');
+  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (pal[ch]) { g.fillStyle = pal[ch]; g.fillRect(x, y, 1, 1); } }));
+  return c;
+}
+const rnd = n => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+
+const CELL = ['..kkkkk..', '.kbbbbbk.', 'kbhhbbbbk', 'kbebbbebk', 'kbbbbbbbk', 'kbmbbbmbk', 'kbbmmmbbk', '.kbbbbbk.', '..kkkkk..'];
+const CELL_SAD = [...CELL.slice(0, 5), 'kbbmmmbbk', 'kbmbbbmbk', ...CELL.slice(7)];
+const CELL_COL = { swab:['#ffc4a8', '#ffe6d8'], blood:['#ff8a8a', '#ffc9c9'], stem:['#6ee27a', '#e0ffe0'] };
+const BOTTLE = ['....kkkk....', '....kcck....', '....kkkk....', '....kggk....', '....kggk....', '...kggggk...',
+  '..kgllllgk..', '.kgllllllgk.', 'kgwlllllllgk', 'kgwlllllllgk', 'kgllllllllgk', 'kgllllllllgk', 'kgllllllllgk',
+  '.kgllllllgk.', '..kkkkkkkk..'];
+const QMARK = sprite(['.kkk.', 'k...k', '....k', '...k.', '..k..', '.....', '..k..'], { k:OUT });
+const cache = {};
+const cellSpr = (kind, mood) => cache[kind + mood] ??= sprite(mood === 'sad' ? CELL_SAD : CELL,
+  { k:OUT, b:CELL_COL[kind][0], h:CELL_COL[kind][1], e:'#1d1d2b', m:'#8a2b3b' });
+const bottleSpr = col => sprite(BOTTLE, { k:OUT, c:'#a0703c', g:'#cfe9f2', w:'#fff', l:col });
+const bottleCached = col => cache['b' + col] ??= bottleSpr(col);
+
+// ---------- scene ----------
+const DISH = { x:96, y:80, rx:36, ry:12 };
+const SPOTS = [[-22, -3], [-10, -6], [4, -6], [17, -4], [-16, 4], [-2, 2], [12, 4], [24, 2]];
+let S;
+function resetScene() {
+  S = { cells:[], kind:'swab', mood:'happy', sparkle:false, question:false, tint:null, tool:null, source:null,
+        drop:0, pour:null, org:null, merge:0, shake:0, blink:false, title:false, showcase:false };
+}
+function freshCells(kind) {
+  Object.assign(S, { kind, mood:'happy', merge:0, org:null, tint:null, shake:0, question:false, sparkle:kind === 'stem',
+    cells:SPOTS.map(([dx, dy]) => ({ dx, dy, s:1 })) });
+}
+
+function drawRoom() {
+  rect(0, 0, W, 66, '#a8dcea');
+  for (let x = 0; x < W; x += 16) rect(x, 0, 1, 66, '#97cfdf');
+  for (let y = 11; y < 66; y += 11) rect(0, y, W, 1, '#97cfdf');
+  rect(74, 8, 34, 24, OUT); rect(76, 10, 30, 20, '#6fc3ff'); rect(90, 10, 2, 20, OUT); rect(76, 19, 30, 2, OUT);   // window
+  rect(80, 13, 6, 2, '#fff'); rect(96, 23, 7, 2, '#fff');
+  rect(118, 30, 70, 3, '#8b5a2b'); rect(118, 33, 70, 1, OUT);                                                     // shelf
+  ['#e8454f', '#ffd34d', '#6ee27a', '#4a90d9', '#c77dff'].forEach((c, i) => {
+    const x = 122 + i * 13; rect(x + 1, 16, 4, 5, OUT); rect(x, 20, 6, 10, OUT); rect(x + 1, 22, 4, 8, c); rect(x + 2, 17, 2, 4, '#cfe9f2');
+  });
+  rect(0, 66, W, 30, '#dfe4ea'); rect(0, 66, W, 2, '#f5f7fa'); rect(0, 96, W, 12, '#55607a'); rect(0, 96, W, 1, OUT);  // bench
+  rect(158, 74, 22, 5, OUT); rect(159, 75, 20, 3, '#e9eef5');                                                      // microscope
+  rect(172, 48, 4, 27, OUT); rect(173, 49, 2, 25, '#e9eef5');
+  rect(160, 62, 16, 3, OUT);
+  rect(163, 42, 5, 16, OUT); rect(164, 43, 3, 14, '#4a5878'); rect(161, 40, 9, 3, OUT);
+}
+
+function sparkles(cx, cy, rx, ry, tm) {
+  const f = Math.floor(tm * 4);
+  for (let i = 0; i < 10; i++) {
+    const x = cx + (rnd(i + f * 17) * 2 - 1) * rx, y = cy + (rnd(i * 3 + f * 7) * 2 - 1) * ry;
+    px(x, y, '#fff'); px(x - 1, y, '#ffd34d'); px(x + 1, y, '#ffd34d'); px(x, y - 1, '#ffd34d'); px(x, y + 1, '#ffd34d');
+  }
+}
+
+function drawOrganoid(type, x, y, r, tm) {
+  r = Math.max(1, r); x = R(x); y = R(y);
+  if (type === 'brain') {
+    const rx = r, ry = r * 0.8;
+    ellO(x, y, rx, ry, '#f4a6c0');
+    for (let k = -1; k <= 1; k++) for (let i = -R(rx) + 2; i <= R(rx) - 2; i++) {
+      const yy = R(k * ry * 0.45 + Math.sin(i * 0.9 + k * 2) * 1.2);
+      if ((i / rx) ** 2 + (yy / ry) ** 2 < 0.75) px(x + i, y + yy, '#d0628c');
+    }
+    for (let j = -R(ry) + 1; j < ry; j++) px(x, y + j, '#d0628c');
+  } else if (type === 'gut') {
+    const buds = [0, 1, 2, 3, 4, 5].map(i => { const a = i / 6 * Math.PI * 2 + 0.3; return [x + Math.cos(a) * r * 0.95, y + Math.sin(a) * r * 0.8]; });
+    buds.forEach(([bx, by]) => ell(bx, by, r * 0.3 + 1, r * 0.3 + 1, OUT));
+    ell(x, y, r * 0.85 + 1, r * 0.7 + 1, OUT);
+    buds.forEach(([bx, by]) => ell(bx, by, r * 0.3, r * 0.3, '#f6c26b'));
+    ell(x, y, r * 0.85, r * 0.7, '#f6c26b');
+    ell(x, y, r * 0.4, r * 0.3, '#fff3d6');
+  } else if (type === 'heart') {
+    const b = r * (1 + 0.12 * Math.max(0, Math.sin(tm * 7))), s = b / 1.15;   // beats!
+    shape(x, y, R(b) + 2, (i, j) => { const X = i / s, Y = -j / s + 0.1; return (X * X + Y * Y - 1) ** 3 - X * X * Y ** 3 <= 0; }, '#e8454f');
+    px(x - R(b * 0.5), y - R(b * 0.4), '#ffb3b8');
+  } else {
+    ellO(x - 2, y, r, r * 0.85, '#5a3a22');
+    ellO(x + 1, y, r * 0.8, r * 0.7, '#fff');
+    ell(x + 2, y, r * 0.45, r * 0.45, '#4a90d9');
+    ell(x + 2, y, r * 0.2, r * 0.2, '#1d1d2b');
+    px(x + 2 - R(r * 0.25), y - R(r * 0.25), '#fff');
+  }
+}
+
+function drawDish(tm) {
+  const d = DISH;
+  ell(d.x, d.y + 3, d.rx + 1, d.ry + 1, OUT); ell(d.x, d.y + 3, d.rx, d.ry, '#b7d8e3');
+  ellO(d.x, d.y, d.rx, d.ry, '#cfe9f2'); ell(d.x, d.y, d.rx - 2, d.ry - 2, '#eef9fc');
+  rect(d.x - 22, d.y - d.ry + 2, 10, 1, '#fff');
+  if (S.tint) { ctx.globalAlpha = S.tint.a * 0.5; ell(d.x, d.y, d.rx - 2, d.ry - 2, S.tint.c); ctx.globalAlpha = 1; }
+  if (S.merge < 1) S.cells.forEach((c, i) => {
+    if (c.s <= 0) return;
+    const m = S.merge;
+    const x = d.x + c.dx * (1 - m) + Math.sin(tm * 40 + i) * S.shake;
+    const y = d.y + c.dy * (1 - m) + R(Math.sin(tm * 3 + i));
+    const kind = S.blink && Math.floor(tm * 8) % 2 ? 'stem' : S.kind;
+    const w = Math.max(1, R(9 * c.s * (1 - m * 0.8)));
+    ctx.drawImage(cellSpr(kind, S.mood), R(x - w / 2), R(y - w / 2), w, w);
+  });
+  if (S.org) drawOrganoid(S.org.type, d.x, d.y - 2, S.org.p * 11, tm);
+  if (S.sparkle) sparkles(d.x, d.y - 4, d.rx - 4, d.ry + 4, tm);
+  if (S.question) ctx.drawImage(QMARK, d.x - 5, d.y - d.ry - 20 + R(Math.sin(tm * 4)), 10, 14);
+}
+
+function drawSource() {
+  if (S.source === 'face') {
+    rect(9, 60, 26, 6, '#4a90d9'); rect(9, 60, 26, 1, OUT);
+    ellO(22, 48, 11, 12, '#f2c29b'); ell(22, 38, 10, 3, '#5a3a22');
+    rect(17, 45, 2, 2, OUT); rect(26, 45, 2, 2, OUT); px(14, 51, '#ff9a9a'); px(30, 51, '#ff9a9a');
+    ell(22, 55, 3, 2, '#8a2b3b');
+  } else if (S.source === 'finger') {
+    ellO(25, 58, 3, 3, '#f2c29b'); rect(0, 54, 25, 9, OUT); rect(0, 55, 25, 7, '#f2c29b'); rect(22, 55, 5, 2, '#ffe0e8');
+    if (S.drop > 0.3) ellO(27, 62 + S.drop, S.drop, S.drop, '#c8102e');
+  }
+}
+
+function drawTool() {
+  const k = S.tool; if (!k) return;
+  if (k.type === 'swab') {
+    for (let i = 2; i < 22; i++) { px(k.x + i, k.y - i, '#8b5a2b'); px(k.x + i + 1, k.y - i, OUT); }
+    ellO(k.x, k.y, 2, 2, '#fff');
+  } else {
+    rect(k.x - 1, k.y - 16, 3, 17, OUT); rect(k.x, k.y - 15, 1, 15, '#cfe9f2');
+    const f = R(k.fill * 10); if (f) rect(k.x, k.y - f, 1, f, '#c8102e');
+    ellO(k.x, k.y - 19, 3, 4, '#7f8fb3');
+  }
+}
+
+function drawPour(tm) {
+  const p = S.pour; if (!p) return;
+  const bx = 106, by = 44;
+  ctx.save(); ctx.translate(bx, by); ctx.rotate(p.a); ctx.drawImage(bottleCached(p.col), -6, -7); ctx.restore();
+  if (!p.drops) return;
+  const mx = bx + 7 * Math.sin(p.a), my = by - 7 * Math.cos(p.a), fall = DISH.y - 4 - my;
+  for (let k = 0; k < 4; k++) { const y = my + (tm * 70 + k * 9) % fall; rect(mx - 1, y - 1, 4, 5, OUT); rect(mx, y, 2, 3, p.col); }
+}
+
+function drawHUD(tm) {
+  ORGANS.forEach((o, i) => {
+    const x = 9 + i * 15, y = 9;
+    rect(x - 7, y - 7, 15, 15, OUT); rect(x - 6, y - 6, 13, 13, badges.has(o) ? '#fff7d6' : '#3a4670');
+    if (badges.has(o)) drawOrganoid(o, x, y, 4, tm);
+  });
+}
+
+function drawFloating(tm) {
+  for (let i = 0; i < 10; i++) {
+    const kind = ['swab', 'blood', 'stem'][i % 3];
+    const x = ((i * 29 + tm * (8 + (i % 3) * 4)) % (W + 20)) - 10;
+    const y = 14 + (i * 13) % 40 + Math.sin(tm * 2 + i) * 3;
+    ctx.drawImage(cellSpr(kind, 'happy'), R(x), R(y), 9, 9);
+  }
+}
+
+function drawShowcase(tm) {
+  const got = S.showcase;
+  got.forEach((o, i) => {
+    const x = R(96 + (i - (got.length - 1) / 2) * 33) - 6;
+    ellO(x, 84, 15, 5, '#cfe9f2');
+    drawOrganoid(o, x, 76, 10, tm);
+  });
+  sparkles(96, 60, 80, 25, tm);
+}
+
+function frame(now) {
+  const tm = now / 1000;
+  drawRoom();
+  if (S.title) drawFloating(tm);
+  if (S.showcase) drawShowcase(tm); else drawDish(tm);
+  drawSource(); drawTool(); drawPour(tm);
+  if (['sample', 'repro', 'org'].includes(screen)) drawHUD(tm);
+  requestAnimationFrame(frame);
+}
+
+// ---------- animation helpers ----------
+const ease = p => p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const tween = (ms, fn) => new Promise(res => {
+  const t0 = performance.now();
+  (function step(now) { const p = Math.min(1, (now - t0) / ms); fn(p); p < 1 ? requestAnimationFrame(step) : res(); })(t0);
+});
+function moveTool(x, y, ms) {
+  const x0 = S.tool.x, y0 = S.tool.y;
+  return tween(ms, p => { const e = ease(p); S.tool.x = x0 + (x - x0) * e; S.tool.y = y0 + (y - y0) * e; });
+}
+async function pour(col) {
+  S.pour = { col, a:0, drops:false };
+  await tween(500, p => S.pour.a = -2 * ease(p));
+  S.pour.drops = true; S.tint = { c:col, a:0 };
+  await tween(1400, p => S.tint.a = p);
+  S.pour.drops = false;
+  await tween(400, p => S.pour.a = -2 * (1 - p));
+  S.pour = null;
+}
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---------- panel ----------
+const $panel = document.getElementById('panel');
+let panelFn = () => {};
+function add(parent, tag, text, cls) { const e = document.createElement(tag); if (text) e.textContent = text; if (cls) e.className = cls; parent.append(e); return e; }
+function show(o) {
+  panelFn = () => {
+    $panel.innerHTML = '';
+    if (o.logo) {
+      const hd = add($panel, 'div', '', 'head'); const img = add(hd, 'img');
+      img.src = 'ccb_logo.png'; img.alt = 'CCB'; add(hd, 'h1', t(o.title));
+    } else if (o.title) add($panel, 'h1', t(o.title));
+    if (o.card) { const c = add($panel, 'div', '', 'card'); add(c, 'h2', t(o.card + '_t')); add(c, 'p', t(o.card)); }
+    if (o.msg) add($panel, 'p', t(o.msg, o.n), 'msg');
+    if (o.hint) add($panel, 'p', t(o.hint), 'hint');
+    if (o.fact) { const f = add($panel, 'div', '', 'fact'); add(f, 'b', t('didYouKnow')); add(f, 'span', t(o.fact)); }
+    const row = add($panel, 'div', '', 'btns');
+    (o.bottles || []).forEach(b => {
+      const btn = add(row, 'button', '', 'bottle');
+      btn.append(bottleSpr(b.col)); add(btn, 'span', t('b_' + b.id)); if (b.sub) add(btn, 'small', b.sub);
+      btn.onclick = () => o.pick(b);
+    });
+    (o.buttons || []).forEach(([k, fn]) => { add(row, 'button', t(k)).onclick = fn; });
+    if (o.credits) {
+      const f = add($panel, 'p', '', 'credits'); f.append(t('credit') + ' · ');
+      const a = add(f, 'a', t('event')); a.href = 'https://www.uniklinikum-jena.de/LNdW.html'; a.target = '_blank'; a.rel = 'noopener';
+    }
+  };
+  panelFn();
+}
+
+// ---------- game flow ----------
+let screen = 'title', busy = false, sample = 'swab', isStem = false, badges = new Set();
+
+function title() {
+  screen = 'title'; busy = false; badges = new Set(); isStem = false;
+  resetScene(); S.title = true; freshCells('stem');
+  show({ title:'title', logo:true, msg:'subtitle', credits:true, buttons:[['start', introWhat]] });
+}
+
+function introWhat() {
+  screen = 'intro'; resetScene(); freshCells('stem');
+  show({ card:'what', buttons:[['next', introWhy]] });
+}
+
+function introWhy() {
+  resetScene(); S.showcase = ORGANS;
+  show({ card:'why', buttons:[['next', chooseSample]] });
+}
+
+function chooseSample() {
+  screen = 'sample'; resetScene();
+  show({ msg:'step1', buttons:[['swab', () => collect('swab')], ['blood', () => collect('blood')]] });
+}
+
+async function collect(kind) {
+  busy = true; sample = kind; show({ msg:'collecting' });
+  S.kind = kind; S.cells = SPOTS.map(([dx, dy]) => ({ dx, dy, s:0 }));
+  if (kind === 'swab') {
+    S.source = 'face'; S.tool = { type:'swab', x:70, y:20 };
+    await moveTool(24, 55, 800);
+    await tween(1400, p => { S.tool.x = 24 + Math.sin(p * Math.PI * 6) * 2; S.tool.y = 55 + Math.cos(p * Math.PI * 6); });
+    await moveTool(DISH.x, DISH.y - 2, 1000);
+    await moveTool(DISH.x, DISH.y + 1, 300);
+  } else {
+    S.source = 'finger'; S.tool = { type:'pipette', x:70, y:24, fill:0 };
+    await tween(900, p => S.drop = p * 2.5);
+    await moveTool(27, 62, 800);
+    await tween(500, p => { S.drop = 2.5 * (1 - p); S.tool.fill = p; });
+    await moveTool(DISH.x, DISH.y - 2, 1000);
+    await tween(500, p => S.tool.fill = 1 - p);
+  }
+  for (const c of S.cells) await tween(140, p => c.s = p);
+  await moveTool(DISH.x + 40, -30, 500);
+  S.tool = null; S.source = null; busy = false;
+  show({ msg:'gotCells', fact:'f_' + kind, buttons:[['next', reprogram]] });
+}
+
+function reprogram() {
+  screen = 'repro'; S.tint = null; S.question = false;
+  show({ msg:'step2', hint:'hint', bottles:shuffle([...REPRO]), pick:pourRepro });
+}
+
+async function pourRepro(b) {
+  busy = true; show({ msg:'pouring' });
+  await pour(b.col);
+  isStem = !!b.ok;
+  if (isStem) {
+    S.blink = true; await wait(1200); S.blink = false;
+    S.kind = 'stem'; S.sparkle = true;
+    show({ msg:'success', fact:'f_yamanaka', buttons:[['next', organoidBench]] });
+  } else {
+    // ponytail: the kid isn't told it failed yet — they find out when the organoid won't grow
+    S.question = true;
+    show({ msg:'failHint', buttons:[['next', organoidBench]] });
+  }
+  busy = false;
+}
+
+function organoidBench() {
+  screen = 'org';
+  if (isStem) freshCells('stem'); else { S.tint = null; S.question = false; }
+  show({ msg:'step3', bottles:ORGANS.map(id => ({ id, col:ORG_COL[id] })), pick:pourOrg });
+}
+
+async function pourOrg(b) {
+  busy = true; show({ msg:'pouring' });
+  await pour(b.col);
+  if (isStem) {
+    show({ msg:'growing' }); S.sparkle = false;
+    await tween(900, p => S.merge = p);
+    S.org = { type:b.id, p:0 };
+    await tween(1800, p => S.org.p = ease(p));
+    S.sparkle = true; badges.add(b.id);
+    const buttons = badges.size < 4 ? [['another', organoidBench], ['finish', end]] : [['finish', end]];
+    show({ msg:'made_' + b.id, fact:'f_' + b.id, buttons });
+  } else {
+    await tween(1000, p => S.shake = Math.sin(p * Math.PI) * 1.5);
+    S.shake = 0; S.mood = 'sad';
+    show({ msg:'noGrow', fact:'f_onlyStem', buttons:[['tryAgain', () => { freshCells(sample); reprogram(); }]] });
+  }
+  busy = false;
+}
+
+function end() {
+  screen = 'end'; resetScene(); S.showcase = ORGANS.filter(o => badges.has(o));
+  show({ title:'end', msg:'endSub', n:badges.size, hint:badges.size === 4 ? 'allDone' : null, buttons:[['playAgain', title]] });
+}
+
+// ---------- language + idle reset ----------
+function setLang(l) {
+  lang = l; document.documentElement.lang = l; document.title = T[l].title;
+  try { localStorage.setItem('lang', l); } catch {}
+  document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.l === l));
+  panelFn();
+}
+document.querySelectorAll('#lang button').forEach(b => b.onclick = () => setLang(b.dataset.l));
+
+let lastTouch = Date.now();
+addEventListener('pointerdown', () => lastTouch = Date.now(), true);
+setInterval(() => { if (screen !== 'title' && !busy && Date.now() - lastTouch > IDLE_MS) title(); }, 1000);
+
+title();
+setLang(lang);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
